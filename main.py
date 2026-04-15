@@ -1,1 +1,1 @@
-print("Meu primeiro projeto!")
+print("Meu primeiro repositório!")
