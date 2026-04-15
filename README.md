@@ -30,3 +30,7 @@ Se o comando `py` nao existir no seu computador, use o executavel Python que est
 ## Arquivo gerado
 
 Os dados ficam em `learning_plan.json`, criado automaticamente na primeira escrita.
+
+## Dica
+
+Se quiser começar com exemplos prontos, execute primeiro `py -3 main.py seed` e depois `py -3 main.py list`.
