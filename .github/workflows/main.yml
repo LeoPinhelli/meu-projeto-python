@@ -27,6 +27,9 @@ jobs:
           python main.py list
           python main.py stats
 
+      - name: Run unit tests
+        run: python -m unittest test_main.py
+
   deploy:
     name: deploy
     runs-on: ubuntu-latest
