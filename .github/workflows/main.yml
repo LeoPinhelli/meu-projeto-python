@@ -36,3 +36,23 @@ jobs:
     steps:
       - name: Deploy fake
         run: echo "Deploy realizado com sucesso"
+
+  notify:
+    name: notify
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    if: always()
+
+    steps:
+      - name: Notificar Discord
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            MSG="✅ Pipeline concluído com sucesso no branch main!"
+          else
+            MSG="❌ Pipeline falhou! Verifique o GitHub Actions."
+          fi
+
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d "{\"content\":\"$MSG\"}" \
+          ${{ secrets.DISCORD_WEBHOOK }}

@@ -1,216 +1,114 @@
-from __future__ import annotations
+import sys
 
-import argparse
-import json
-import random
-from dataclasses import asdict, dataclass
-from datetime import date
-from pathlib import Path
+# "Banco de dados" simples em memória
+historico = []
 
 
-DATA_FILE = Path(__file__).with_name("learning_plan.json")
-
-SUGGESTIONS = [
-	{"name": "Rust", "kind": "linguagem", "difficulty": 4},
-	{"name": "FastAPI", "kind": "framework", "difficulty": 3},
-	{"name": "TypeScript", "kind": "linguagem", "difficulty": 3},
-	{"name": "Docker", "kind": "ferramenta", "difficulty": 2},
-	{"name": "pytest", "kind": "ferramenta", "difficulty": 2},
-	{"name": "Svelte", "kind": "framework", "difficulty": 3},
-]
+def somar(a, b):
+    return a + b
 
 
-@dataclass
-class Topic:
-	id: int
-	name: str
-	kind: str
-	difficulty: int
-	completed: bool = False
-	created_at: str = date.today().isoformat()
+def subtrair(a, b):
+    return a - b
 
 
-def load_topics() -> list[Topic]:
-	if not DATA_FILE.exists():
-		return []
-
-	try:
-		raw_items = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-	except json.JSONDecodeError:
-		return []
-
-	topics: list[Topic] = []
-	for item in raw_items:
-		topics.append(
-			Topic(
-				id=int(item["id"]),
-				name=str(item["name"]),
-				kind=str(item["kind"]),
-				difficulty=int(item["difficulty"]),
-				completed=bool(item.get("completed", False)),
-				created_at=str(item.get("created_at", date.today().isoformat())),
-			)
-		)
-	return topics
+def multiplicar(a, b):
+    return a * b
 
 
-def save_topics(topics: list[Topic]) -> None:
-	DATA_FILE.write_text(
-		json.dumps([asdict(topic) for topic in topics], ensure_ascii=False, indent=2),
-		encoding="utf-8",
-	)
+def dividir(a, b):
+    if b == 0:
+        raise ValueError("Não é possível dividir por zero")
+    return a / b
 
 
-def next_id(topics: list[Topic]) -> int:
-	return max((topic.id for topic in topics), default=0) + 1
+def registrar_operacao(op, a, b, resultado):
+    historico.append({
+        "operacao": op,
+        "a": a,
+        "b": b,
+        "resultado": resultado
+    })
 
 
-def format_topic(topic: Topic) -> str:
-	status = "feito" if topic.completed else "em aberto"
-	return f"#{topic.id} | {topic.name} | {topic.kind} | dificuldade {topic.difficulty} | {status}"
+def seed():
+    print("🌱 Populando histórico com dados iniciais...")
+    registrar_operacao("soma", 2, 3, somar(2, 3))
+    registrar_operacao("subtracao", 5, 2, subtrair(5, 2))
+    registrar_operacao("multiplicacao", 3, 4, multiplicar(3, 4))
+    registrar_operacao("divisao", 10, 2, dividir(10, 2))
+    print("✅ Seed concluído!")
 
 
-def cmd_add(args: argparse.Namespace) -> None:
-	topics = load_topics()
-	topic = Topic(
-		id=next_id(topics),
-		name=args.name,
-		kind=args.kind,
-		difficulty=args.difficulty,
-	)
-	topics.append(topic)
-	save_topics(topics)
-	print(f"Tarefa adicionada: {format_topic(topic)}")
+def listar():
+    print("📋 Histórico de operações:")
+    if not historico:
+        print("Nenhuma operação registrada.")
+        return
+
+    for i, op in enumerate(historico, start=1):
+        print(f"{i}. {op['operacao']} ({op['a']}, {op['b']}) = {op['resultado']}")
 
 
-def cmd_list(_: argparse.Namespace) -> None:
-	topics = load_topics()
-	if not topics:
-		print("Nenhuma tarefa cadastrada ainda.")
-		return
+def estatisticas():
+    print("📊 Estatísticas:")
+    if not historico:
+        print("Sem dados.")
+        return
 
-	for topic in topics:
-		print(format_topic(topic))
+    total = len(historico)
+    soma_resultados = sum(op["resultado"] for op in historico)
 
-
-def cmd_done(args: argparse.Namespace) -> None:
-	topics = load_topics()
-	for topic in topics:
-		if topic.id == args.id:
-			topic.completed = True
-			save_topics(topics)
-			print(f"Marcado como concluido: {format_topic(topic)}")
-			return
-
-	print(f"Nenhuma tarefa encontrada com id {args.id}.")
+    print(f"Total de operações: {total}")
+    print(f"Soma dos resultados: {soma_resultados}")
+    print(f"Média dos resultados: {soma_resultados / total:.2f}")
 
 
-def cmd_stats(_: argparse.Namespace) -> None:
-	topics = load_topics()
-	total = len(topics)
-	completed = sum(topic.completed for topic in topics)
-	open_items = total - completed
+def calcular(op, a, b):
+    a = float(a)
+    b = float(b)
 
-	print(f"Total: {total}")
-	print(f"Concluidos: {completed}")
-	print(f"Em aberto: {open_items}")
+    if op == "soma":
+        resultado = somar(a, b)
+    elif op == "sub":
+        resultado = subtrair(a, b)
+    elif op == "mult":
+        resultado = multiplicar(a, b)
+    elif op == "div":
+        resultado = dividir(a, b)
+    else:
+        print("Operação inválida")
+        return
 
-
-def cmd_recommend(_: argparse.Namespace) -> None:
-	topics = load_topics()
-	open_topics = [topic for topic in topics if not topic.completed]
-
-	if open_topics:
-		suggestion = sorted(open_topics, key=lambda topic: (topic.difficulty, topic.id))[0]
-		print("Proximo foco sugerido:")
-		print(format_topic(suggestion))
-		return
-
-	suggestion = random.choice(SUGGESTIONS)
-	print("Sem tarefas abertas. Uma sugestao para estudar agora:")
-	print(
-		f"{suggestion['name']} | {suggestion['kind']} | dificuldade {suggestion['difficulty']}"
-	)
+    registrar_operacao(op, a, b, resultado)
+    print(f"Resultado: {resultado}")
 
 
-def cmd_seed(_: argparse.Namespace) -> None:
-	topics = load_topics()
-	existing = {(topic.name.lower(), topic.kind.lower()) for topic in topics}
+def main():
+    if len(sys.argv) < 2:
+        print("Uso:")
+        print(" python main.py seed")
+        print(" python main.py list")
+        print(" python main.py stats")
+        print(" python main.py soma 2 3")
+        return
 
-	added = 0
-	for suggestion in SUGGESTIONS:
-		key = (suggestion["name"].lower(), suggestion["kind"].lower())
-		if key in existing:
-			continue
+    comando = sys.argv[1]
 
-		topics.append(
-			Topic(
-				id=next_id(topics),
-				name=suggestion["name"],
-				kind=suggestion["kind"],
-				difficulty=suggestion["difficulty"],
-			)
-		)
-		added += 1
-
-	save_topics(topics)
-	print(f"{added} sugestoes adicionadas ao plano.")
-
-
-def build_parser() -> argparse.ArgumentParser:
-	parser = argparse.ArgumentParser(
-		description="Pequena CLI para organizar o aprendizado de uma linguagem ou framework."
-	)
-	subparsers = parser.add_subparsers(dest="command")
-
-	add_parser = subparsers.add_parser("add", help="Adicionar um novo objetivo de estudo.")
-	add_parser.add_argument("name", help="Nome da linguagem, framework ou ferramenta.")
-	add_parser.add_argument(
-		"kind",
-		choices=["linguagem", "framework", "ferramenta"],
-		help="Categoria do objetivo.",
-	)
-	add_parser.add_argument(
-		"difficulty",
-		type=int,
-		choices=range(1, 6),
-		help="Dificuldade de 1 a 5.",
-	)
-	add_parser.set_defaults(func=cmd_add)
-
-	list_parser = subparsers.add_parser("list", help="Listar os objetivos cadastrados.")
-	list_parser.set_defaults(func=cmd_list)
-
-	done_parser = subparsers.add_parser("done", help="Marcar um objetivo como concluido.")
-	done_parser.add_argument("id", type=int, help="Id do objetivo.")
-	done_parser.set_defaults(func=cmd_done)
-
-	stats_parser = subparsers.add_parser("stats", help="Exibir um resumo rapido.")
-	stats_parser.set_defaults(func=cmd_stats)
-
-	recommend_parser = subparsers.add_parser(
-		"recommend", help="Sugerir o proximo foco de estudo."
-	)
-	recommend_parser.set_defaults(func=cmd_recommend)
-
-	seed_parser = subparsers.add_parser(
-		"seed", help="Adicionar uma lista inicial de tecnologias para explorar."
-	)
-	seed_parser.set_defaults(func=cmd_seed)
-
-	return parser
-
-
-def main() -> None:
-	parser = build_parser()
-	args = parser.parse_args()
-
-	if not hasattr(args, "func"):
-		parser.print_help()
-		return
-
-	args.func(args)
+    if comando == "seed":
+        seed()
+    elif comando == "list":
+        listar()
+    elif comando == "stats":
+        estatisticas()
+    elif comando in ["soma", "sub", "mult", "div"]:
+        if len(sys.argv) != 4:
+            print("Uso: python main.py soma 2 3")
+            return
+        calcular(comando, sys.argv[2], sys.argv[3])
+    else:
+        print("Comando inválido")
 
 
 if __name__ == "__main__":
-	main()
+    main()
